@@ -72,9 +72,18 @@ export default function CampaignerDashboardPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {campaigns.map((c: any) => (
-              <div key={c.id} className="p-5 bg-zinc-900 border border-zinc-800 rounded-xl space-y-2">
-                <h3 className="font-semibold text-white text-sm">{c.title}</h3>
-                <p className="text-xs text-zinc-400">Target: UGX {Number(c.targetAmount).toLocaleString()}</p>
+              <div key={c.id} className="p-5 bg-zinc-900 border border-zinc-800 rounded-xl space-y-2 flex gap-4">
+                {c.imageUrl ? (
+                  <img src={c.imageUrl} alt={c.title} className="w-16 h-16 object-cover rounded-lg shrink-0" />
+                ) : (
+                  <div className="w-16 h-16 bg-zinc-800 rounded-lg flex items-center justify-center shrink-0">
+                    <Megaphone className="w-5 h-5 text-zinc-600" />
+                  </div>
+                )}
+                <div>
+                  <h3 className="font-semibold text-white text-sm">{c.title}</h3>
+                  <p className="text-xs text-zinc-400">Target: UGX {Number(c.targetAmount).toLocaleString()}</p>
+                </div>
               </div>
             ))}
           </div>
