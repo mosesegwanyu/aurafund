@@ -3,15 +3,45 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Megaphone, ArrowLeft, AlertCircle } from 'lucide-react';
+import { Megaphone, ArrowLeft, AlertCircle, ImagePlus, X } from 'lucide-react';
 
 export default function CreateCampaignPage() {
   const router = useRouter();
   const [title, setTitle] = useState('');
   const [targetAmount, setTargetAmount] = useState('');
   const [description, setDescription] = useState('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setError('');
+
+    if (!file) {
+      setImageFile(null);
+      setImagePreview(null);
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      setError('Please choose an image file.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Image must be smaller than 5MB.');
+      return;
+    }
+
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,10 +49,17 @@ export default function CreateCampaignPage() {
     setError('');
 
     try {
+      const formData = new FormData();
+      formData.append('title', title);
+      formData.append('targetAmount', targetAmount);
+      formData.append('description', description);
+      if (imageFile) {
+        formData.append('image', imageFile);
+      }
+
       const res = await fetch('/api/campaigns', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, targetAmount: Number(targetAmount), description }),
+        body: formData,
       });
 
       const data = await res.json();
@@ -62,6 +99,28 @@ export default function CreateCampaignPage() {
         )}
 
         <form onSubmit={handleCreate} className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-mono text-zinc-400">Campaign Photo</label>
+            {imagePreview ? (
+              <div className="relative">
+                <img src={imagePreview} alt="Campaign preview" className="w-full h-40 object-cover rounded-xl border border-zinc-800" />
+                <button
+                  type="button"
+                  onClick={removeImage}
+                  className="absolute top-2 right-2 bg-black/70 hover:bg-black text-white rounded-full p-1.5"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <label className="flex flex-col items-center justify-center gap-2 w-full h-40 border border-dashed border-zinc-700 rounded-xl cursor-pointer hover:border-emerald-500/50 transition-colors">
+                <ImagePlus className="w-6 h-6 text-zinc-500" />
+                <span className="text-xs text-zinc-500 font-mono">Tap to upload a photo</span>
+                <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+              </label>
+            )}
+          </div>
+
           <div className="space-y-1.5">
             <label className="text-xs font-mono text-zinc-400">Campaign Title</label>
             <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Community Well Drilling Project" className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500/50" />
