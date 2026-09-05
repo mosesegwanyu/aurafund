@@ -64,6 +64,19 @@ export async function POST(req: Request) {
       });
 
       const data = await res.json();
+
+      if (!res.ok || data.status === 'error') {
+        console.error('Flutterwave charge rejected:', data);
+        await prisma.transaction.update({
+          where: { reference: txRef },
+          data: { status: 'FAILED', rawPayload: JSON.stringify(data) },
+        });
+        return NextResponse.json(
+          { error: data.message || 'Payment provider rejected this donation.' },
+          { status: 502 }
+        );
+      }
+
       return NextResponse.json({ success: true, data, txRef });
     }
 
@@ -144,6 +157,19 @@ export async function POST(req: Request) {
       });
 
       const data = await res.json();
+
+      if (!res.ok || data.status === 'error') {
+        console.error('Flutterwave transfer rejected:', data);
+        await prisma.transaction.update({
+          where: { reference: transferRef },
+          data: { status: 'FAILED', rawPayload: JSON.stringify(data) },
+        });
+        return NextResponse.json(
+          { error: data.message || 'Payment provider rejected this payout.' },
+          { status: 502 }
+        );
+      }
+
       return NextResponse.json({ success: true, data, transferRef });
     }
 
