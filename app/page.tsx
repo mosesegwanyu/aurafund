@@ -40,7 +40,7 @@ export default function HomePage() {
       <main className="max-w-6xl mx-auto p-6 space-y-8">
         <div className="space-y-2">
           <h1 className="text-3xl font-bold text-white">Active Fundraisers</h1>
-          <p className="text-xs text-zinc-400">Support verified causes across Uganda via Mobile Money.</p>
+          <p className="text-xs text-zinc-400">Support verified courses across Uganda via Mobile Money. We can support our campaigns locally starting from as low as Ugx 500</p>
         </div>
 
         {loading ? (
