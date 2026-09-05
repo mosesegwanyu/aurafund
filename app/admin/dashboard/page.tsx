@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ShieldCheck, LogOut, AlertCircle, Wallet, Users, Megaphone, Send } from 'lucide-react';
+import { ShieldCheck, LogOut, AlertCircle, Wallet, Users, Megaphone, Send, Trash2 } from 'lucide-react';
 
 type Campaign = {
   id: string;
@@ -35,6 +35,7 @@ export default function AdminDashboardPage() {
   const [payoutNumber, setPayoutNumber] = useState('');
   const [payoutMessage, setPayoutMessage] = useState('');
   const [payoutLoading, setPayoutLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const loadOverview = async () => {
     try {
@@ -94,6 +95,26 @@ export default function AdminDashboardPage() {
     } catch (err) {
       setPayoutLoading(false);
       setPayoutMessage('Connection error while initiating payout.');
+    }
+  };
+
+  const handleDelete = async (id: string, title: string) => {
+    const confirmed = window.confirm(`Delete "${title}"? This will permanently remove the campaign and its records. This cannot be undone.`);
+    if (!confirmed) return;
+
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/campaigns/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setCampaigns((prev) => prev.filter((c) => c.id !== id));
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to delete campaign.');
+      }
+    } catch (err) {
+      alert('Connection error while deleting campaign.');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -217,6 +238,7 @@ export default function AdminDashboardPage() {
                   <th className="p-3 font-mono">Owner</th>
                   <th className="p-3 font-mono">Raised</th>
                   <th className="p-3 font-mono">Target</th>
+                  <th className="p-3 font-mono">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -226,6 +248,15 @@ export default function AdminDashboardPage() {
                     <td className="p-3 text-zinc-400">{c.user?.name} ({c.user?.phone || c.user?.email})</td>
                     <td className="p-3 text-emerald-400 font-mono">UGX {c.raisedAmount.toLocaleString()}</td>
                     <td className="p-3 text-zinc-500 font-mono">UGX {c.targetAmount.toLocaleString()}</td>
+                    <td className="p-3">
+                      <button
+                        onClick={() => handleDelete(c.id, c.title)}
+                        disabled={deletingId === c.id}
+                        className="flex items-center gap-1 text-[10px] font-mono text-zinc-400 hover:text-red-400 border border-zinc-800 hover:border-red-500/50 rounded-lg px-2 py-1 transition-colors disabled:opacity-50"
+                      >
+                        <Trash2 className="w-3 h-3" /> {deletingId === c.id ? 'Deleting...' : 'Delete'}
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
