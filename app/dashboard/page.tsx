@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { PlusCircle, Megaphone, LogOut, LayoutDashboard } from 'lucide-react';
+import { PlusCircle, Megaphone, LogOut, LayoutDashboard, Pencil } from 'lucide-react';
 
 export default function CampaignerDashboardPage() {
   const router = useRouter();
@@ -72,7 +72,7 @@ export default function CampaignerDashboardPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {campaigns.map((c: any) => (
-              <div key={c.id} className="p-5 bg-zinc-900 border border-zinc-800 rounded-xl space-y-2 flex gap-4">
+              <div key={c.id} className="p-5 bg-zinc-900 border border-zinc-800 rounded-xl space-y-2 flex gap-4 items-start">
                 {c.imageUrl ? (
                   <img src={c.imageUrl} alt={c.title} className="w-16 h-16 object-cover rounded-lg shrink-0" />
                 ) : (
@@ -80,10 +80,16 @@ export default function CampaignerDashboardPage() {
                     <Megaphone className="w-5 h-5 text-zinc-600" />
                   </div>
                 )}
-                <div>
+                <div className="flex-1">
                   <h3 className="font-semibold text-white text-sm">{c.title}</h3>
                   <p className="text-xs text-zinc-400">Target: UGX {Number(c.targetAmount).toLocaleString()}</p>
                 </div>
+                <Link
+                  href={`/campaigns/${c.id}/edit`}
+                  className="flex items-center gap-1 text-xs font-mono text-zinc-400 hover:text-emerald-400 border border-zinc-800 hover:border-emerald-500/50 rounded-lg px-2.5 py-1.5 shrink-0 transition-colors"
+                >
+                  <Pencil className="w-3 h-3" /> Edit
+                </Link>
               </div>
             ))}
           </div>
