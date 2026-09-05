@@ -53,7 +53,15 @@ export default function HomePage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {campaigns.map((c: any) => (
-              <div key={c.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4">
+              <div key={c.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden space-y-4">
+                {c.imageUrl ? (
+                  <img src={c.imageUrl} alt={c.title} className="w-full h-40 object-cover" />
+                ) : (
+                  <div className="w-full h-40 bg-zinc-800 flex items-center justify-center">
+                    <Megaphone className="w-8 h-8 text-zinc-600" />
+                  </div>
+                )}
+                <div className="px-5 pb-5 space-y-4">
                 <h2 className="font-bold text-white text-base">{c.title}</h2>
                 <p className="text-xs text-zinc-400 line-clamp-2">{c.description}</p>
                 <div className="space-y-1">
@@ -67,6 +75,7 @@ export default function HomePage() {
                 <button className="w-full bg-zinc-800 hover:bg-zinc-700 text-white text-xs py-2 rounded-xl font-mono">
                   Donate via Mobile Money
                 </button>
+                </div>
               </div>
             ))}
           </div>
