@@ -3,27 +3,29 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { PlusCircle, Megaphone, LogOut, LayoutDashboard, Pencil } from 'lucide-react';
+import { PlusCircle, Megaphone, LogOut, LayoutDashboard, Pencil, Trash2 } from 'lucide-react';
 
 export default function CampaignerDashboardPage() {
   const router = useRouter();
-  const [campaigns, setCampaigns] = useState([]);
+  const [campaigns, setCampaigns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const fetchCampaigns = async () => {
+    try {
+      const res = await fetch('/api/campaigns/me');
+      if (res.ok) {
+        const data = await res.json();
+        setCampaigns(data.campaigns || []);
+      }
+    } catch (err) {
+      console.error('Failed to load campaigns', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    async function fetchCampaigns() {
-      try {
-        const res = await fetch('/api/campaigns/me');
-        if (res.ok) {
-          const data = await res.json();
-          setCampaigns(data.campaigns || []);
-        }
-      } catch (err) {
-        console.error('Failed to load campaigns', err);
-      } finally {
-        setLoading(false);
-      }
-    }
     fetchCampaigns();
   }, []);
 
@@ -31,6 +33,26 @@ export default function CampaignerDashboardPage() {
     await fetch('/api/auth/logout', { method: 'POST' });
     router.push('/login');
     router.refresh();
+  };
+
+  const handleDelete = async (id: string, title: string) => {
+    const confirmed = window.confirm(`Delete "${title}"? This cannot be undone.`);
+    if (!confirmed) return;
+
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/campaigns/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setCampaigns((prev) => prev.filter((c) => c.id !== id));
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to delete campaign.');
+      }
+    } catch (err) {
+      alert('Connection error while deleting campaign.');
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   return (
@@ -84,12 +106,21 @@ export default function CampaignerDashboardPage() {
                   <h3 className="font-semibold text-white text-sm">{c.title}</h3>
                   <p className="text-xs text-zinc-400">Target: UGX {Number(c.targetAmount).toLocaleString()}</p>
                 </div>
-                <Link
-                  href={`/campaigns/${c.id}/edit`}
-                  className="flex items-center gap-1 text-xs font-mono text-zinc-400 hover:text-emerald-400 border border-zinc-800 hover:border-emerald-500/50 rounded-lg px-2.5 py-1.5 shrink-0 transition-colors"
-                >
-                  <Pencil className="w-3 h-3" /> Edit
-                </Link>
+                <div className="flex flex-col gap-1.5 shrink-0">
+                  <Link
+                    href={`/campaigns/${c.id}/edit`}
+                    className="flex items-center gap-1 text-xs font-mono text-zinc-400 hover:text-emerald-400 border border-zinc-800 hover:border-emerald-500/50 rounded-lg px-2.5 py-1.5 transition-colors"
+                  >
+                    <Pencil className="w-3 h-3" /> Edit
+                  </Link>
+                  <button
+                    onClick={() => handleDelete(c.id, c.title)}
+                    disabled={deletingId === c.id}
+                    className="flex items-center gap-1 text-xs font-mono text-zinc-400 hover:text-red-400 border border-zinc-800 hover:border-red-500/50 rounded-lg px-2.5 py-1.5 transition-colors disabled:opacity-50"
+                  >
+                    <Trash2 className="w-3 h-3" /> {deletingId === c.id ? 'Deleting...' : 'Delete'}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
