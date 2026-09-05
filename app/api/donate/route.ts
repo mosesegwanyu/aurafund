@@ -1,19 +1,53 @@
 import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { getSession } from '@/lib/auth';
+
+const FLUTTERWAVE_BASE = 'https://api.flutterwave.com/v3';
 
 export async function POST(req: Request) {
   try {
-    const { action, amount, phone, campaignId, donorName, momoNumber } = await req.json();
+    const body = await req.json();
+    const { action, amount, phone, campaignId, donorName } = body;
     const secretKey = process.env.FLUTTERWAVE_SECRET_KEY;
 
     if (!secretKey) {
-      return NextResponse.json({ error: 'Secret Key missing' }, { status: 500 });
+      return NextResponse.json({ error: 'Payment provider is not configured.' }, { status: 500 });
     }
 
-    // USER 3 (GUEST DONOR): Trigger Mobile Money USSD Push Prompt directly to phone
-    if (action === 'donate') {
-      const txRef = `DON-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const numericAmount = Number(amount);
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+      return NextResponse.json({ error: 'Amount must be a valid positive number.' }, { status: 400 });
+    }
 
-      const res = await fetch('https://api.flutterwave.com/v3/charges?type=mobile_money_uganda', {
+    // ── Anyone can donate — no login required ──────────────────────────────
+    if (action === 'donate') {
+      if (!campaignId || !phone) {
+        return NextResponse.json({ error: 'campaignId and phone are required.' }, { status: 400 });
+      }
+
+      const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } });
+      if (!campaign) {
+        return NextResponse.json({ error: 'Campaign not found.' }, { status: 404 });
+      }
+
+      const txRef = `DON-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+
+      // Record the attempt immediately, as PENDING. raisedAmount is NOT
+      // touched here — only the webhook, once Flutterwave confirms the
+      // charge actually succeeded, is allowed to update it.
+      await prisma.transaction.create({
+        data: {
+          type: 'DONATION',
+          status: 'PENDING',
+          amount: numericAmount,
+          reference: txRef,
+          phone,
+          donorName: donorName || null,
+          campaignId,
+        },
+      });
+
+      const res = await fetch(`${FLUTTERWAVE_BASE}/charges?type=mobile_money_uganda`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${secretKey}`,
@@ -21,7 +55,7 @@ export async function POST(req: Request) {
         },
         body: JSON.stringify({
           tx_ref: txRef,
-          amount: Number(amount),
+          amount: numericAmount,
           currency: 'UGX',
           email: 'donor@aurafund.app',
           phone_number: phone,
@@ -33,11 +67,67 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, data, txRef });
     }
 
-    // USER 2 (CAMPAIGN CREATOR): Request withdrawal to their registered MoMo number
+    // ── Withdrawals require login + ownership (or admin) ────────────────────
     if (action === 'withdraw') {
-      const transferRef = `WDR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      const session = await getSession();
+      if (!session) {
+        return NextResponse.json({ error: 'Unauthorized. Please log in.' }, { status: 401 });
+      }
 
-      const res = await fetch('https://api.flutterwave.com/v3/transfers', {
+      if (!campaignId) {
+        return NextResponse.json({ error: 'campaignId is required.' }, { status: 400 });
+      }
+
+      const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } });
+      if (!campaign) {
+        return NextResponse.json({ error: 'Campaign not found.' }, { status: 404 });
+      }
+
+      if (campaign.userId !== session.id && session.role !== 'ADMIN') {
+        return NextResponse.json({ error: 'You do not have permission to withdraw from this campaign.' }, { status: 403 });
+      }
+
+      const momoNumber = body.momoNumber || phone;
+      if (!momoNumber) {
+        return NextResponse.json({ error: 'A mobile money number is required.' }, { status: 400 });
+      }
+
+      // Work out what's actually available: confirmed donations minus
+      // everything already paid out or currently in flight.
+      const [donatedAgg, withdrawnAgg] = await Promise.all([
+        prisma.transaction.aggregate({
+          where: { campaignId, type: 'DONATION', status: 'SUCCESSFUL' },
+          _sum: { amount: true },
+        }),
+        prisma.transaction.aggregate({
+          where: { campaignId, type: 'WITHDRAWAL', status: { in: ['PENDING', 'SUCCESSFUL'] } },
+          _sum: { amount: true },
+        }),
+      ]);
+
+      const available = (donatedAgg._sum.amount || 0) - (withdrawnAgg._sum.amount || 0);
+
+      if (numericAmount > available) {
+        return NextResponse.json(
+          { error: `Insufficient balance. Available to withdraw: UGX ${available.toLocaleString()}.` },
+          { status: 400 }
+        );
+      }
+
+      const transferRef = `WDR-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+
+      await prisma.transaction.create({
+        data: {
+          type: 'WITHDRAWAL',
+          status: 'PENDING',
+          amount: numericAmount,
+          reference: transferRef,
+          phone: momoNumber,
+          campaignId,
+        },
+      });
+
+      const res = await fetch(`${FLUTTERWAVE_BASE}/transfers`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${secretKey}`,
@@ -46,7 +136,7 @@ export async function POST(req: Request) {
         body: JSON.stringify({
           account_bank: 'MPS',
           account_number: momoNumber,
-          amount: Number(amount),
+          amount: numericAmount,
           narration: 'AuraFund Payout',
           currency: 'UGX',
           reference: transferRef,
@@ -54,11 +144,12 @@ export async function POST(req: Request) {
       });
 
       const data = await res.json();
-      return NextResponse.json({ success: true, data });
+      return NextResponse.json({ success: true, data, transferRef });
     }
 
     return NextResponse.json({ error: 'Invalid operation' }, { status: 400 });
   } catch (error) {
+    console.error('Donate/withdraw error:', error);
     return NextResponse.json({ error: 'Server payment failed' }, { status: 500 });
   }
 }
