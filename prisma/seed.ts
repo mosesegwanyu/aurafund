@@ -9,7 +9,7 @@ async function main() {
 
   await prisma.user.upsert({
     where: { email: 'admin@aurafund.app' },
-    update: {},
+    update: { passwordHash: hashedPassword },
     create: {
       email: 'admin@aurafund.app',
       name: 'System Administrator',
