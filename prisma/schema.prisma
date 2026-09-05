@@ -14,6 +14,17 @@ enum Role {
   DONOR
 }
 
+enum TransactionType {
+  DONATION
+  WITHDRAWAL
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCESSFUL
+  FAILED
+}
+
 model User {
   id           String     @id @default(cuid())
   name         String
@@ -38,4 +49,23 @@ model Campaign {
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  transactions Transaction[]
+}
+
+model Transaction {
+  id         String            @id @default(cuid())
+  type       TransactionType
+  status     TransactionStatus @default(PENDING)
+  amount     Float
+  currency   String            @default("UGX")
+  reference  String            @unique
+  phone      String?
+  donorName  String?
+  rawPayload String?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 }
