@@ -81,6 +81,16 @@ export default function HomePage() {
       setDonateLoading(false);
 
       if (res.ok) {
+        const authorization = data?.data?.meta?.authorization;
+
+        if (authorization?.mode === 'redirect' && authorization?.redirect) {
+          // Flutterwave wants the donor to complete this on their hosted page
+          // (common for card-network verification / some mobile money flows).
+          window.location.href = authorization.redirect;
+          return;
+        }
+
+        // Otherwise this was a genuine direct push to the donor's phone.
         setDonateSuccess(true);
       } else {
         setDonateError(data.error || 'Failed to start donation. Please try again.');
