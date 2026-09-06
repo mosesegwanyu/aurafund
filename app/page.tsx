@@ -20,6 +20,7 @@ export default function HomePage() {
   const [donateTarget, setDonateTarget] = useState<CampaignType | null>(null);
   const [donateAmount, setDonateAmount] = useState('');
   const [donatePhone, setDonatePhone] = useState('');
+  const [donateNetwork, setDonateNetwork] = useState('MTN');
   const [donorName, setDonorName] = useState('');
   const [donateLoading, setDonateLoading] = useState(false);
   const [donateError, setDonateError] = useState('');
@@ -71,6 +72,7 @@ export default function HomePage() {
           campaignId: donateTarget.id,
           amount: donateAmount,
           phone: donatePhone,
+          network: donateNetwork,
           donorName: donorName || 'Anonymous',
         }),
       });
@@ -208,6 +210,33 @@ export default function HomePage() {
                       placeholder="0700000000"
                       className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500/50"
                     />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-mono text-zinc-400">Network</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setDonateNetwork('MTN')}
+                        className={`py-2.5 rounded-xl text-xs font-mono font-bold border transition-colors ${
+                          donateNetwork === 'MTN'
+                            ? 'bg-yellow-400 border-yellow-400 text-black'
+                            : 'bg-zinc-950 border-zinc-800 text-zinc-400'
+                        }`}
+                      >
+                        MTN
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDonateNetwork('AIRTEL')}
+                        className={`py-2.5 rounded-xl text-xs font-mono font-bold border transition-colors ${
+                          donateNetwork === 'AIRTEL'
+                            ? 'bg-red-500 border-red-500 text-white'
+                            : 'bg-zinc-950 border-zinc-800 text-zinc-400'
+                        }`}
+                      >
+                        Airtel
+                      </button>
+                    </div>
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-mono text-zinc-400">Your Name (optional)</label>
