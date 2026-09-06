@@ -64,6 +64,7 @@ export async function POST(req: Request) {
       });
 
       const data = await res.json();
+      console.log('Flutterwave charge response:', JSON.stringify(data));
 
       if (!res.ok || data.status === 'error') {
         console.error('Flutterwave charge rejected:', data);
@@ -162,20 +163,4 @@ export async function POST(req: Request) {
         console.error('Flutterwave transfer rejected:', data);
         await prisma.transaction.update({
           where: { reference: transferRef },
-          data: { status: 'FAILED', rawPayload: JSON.stringify(data) },
-        });
-        return NextResponse.json(
-          { error: data.message || 'Payment provider rejected this payout.' },
-          { status: 502 }
-        );
-      }
-
-      return NextResponse.json({ success: true, data, transferRef });
-    }
-
-    return NextResponse.json({ error: 'Invalid operation' }, { status: 400 });
-  } catch (error) {
-    console.error('Donate/withdraw error:', error);
-    return NextResponse.json({ error: 'Server payment failed' }, { status: 500 });
-  }
-}
+          data: { status:
