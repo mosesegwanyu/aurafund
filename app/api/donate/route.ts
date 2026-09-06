@@ -7,7 +7,7 @@ const FLUTTERWAVE_BASE = 'https://api.flutterwave.com/v3';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { action, amount, phone, campaignId, donorName } = body;
+    const { action, amount, phone, campaignId, donorName, network } = body;
     const secretKey = process.env.FLUTTERWAVE_SECRET_KEY;
 
     if (!secretKey) {
@@ -23,6 +23,11 @@ export async function POST(req: Request) {
     if (action === 'donate') {
       if (!campaignId || !phone) {
         return NextResponse.json({ error: 'campaignId and phone are required.' }, { status: 400 });
+      }
+
+      const normalizedNetwork = (network || '').toUpperCase();
+      if (!['MTN', 'AIRTEL'].includes(normalizedNetwork)) {
+        return NextResponse.json({ error: 'network must be either MTN or AIRTEL.' }, { status: 400 });
       }
 
       const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } });
@@ -59,6 +64,8 @@ export async function POST(req: Request) {
           currency: 'UGX',
           email: 'donor@aurafund.app',
           phone_number: phone,
+          network: normalizedNetwork,
+          fullname: donorName || 'Anonymous Donor',
           meta: { campaignId, donorName },
         }),
       });
